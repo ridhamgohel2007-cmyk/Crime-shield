@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Navigation } from 'lucide-react';
+import { Users, Navigation, Loader2 } from 'lucide-react';
 
 const initialMockPatrols = [
   { id: 'P-042', zone: 'Navrangpura', officer: 'Sgt. R. Patel', shift: '08:00 - 16:00', status: 'Active', riskScore: 88 },
@@ -8,15 +8,19 @@ const initialMockPatrols = [
   { id: 'P-033', zone: 'Vastrapur', officer: 'Sgt. M. Kumar', shift: '08:00 - 16:00', status: 'Active', riskScore: 78 },
 ];
 
-export default function Patrols() {
+export default function Patrols({ onViewRoute }) {
   const [patrols, setPatrols] = useState(initialMockPatrols);
   const [loading, setLoading] = useState(false);
 
   const generateOptimalRoutes = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/routes/optimize')
-      .then(res => res.json())
-      .then(routePlan => {
+    const fetchPromise = fetch('http://localhost:5000/api/routes/optimize')
+      .then(res => res.json());
+    
+    const delayPromise = new Promise(resolve => setTimeout(resolve, 1200));
+
+    Promise.all([fetchPromise, delayPromise])
+      .then(([routePlan]) => {
         // Find a standby or active unit to assign this route
         setPatrols(prev => prev.map(p => {
           if (p.id === 'P-033') { // Mock assignment logic
@@ -30,14 +34,14 @@ export default function Patrols() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', height: 'calc(100vh - 64px - 3rem)', overflowY: 'auto' }}>
-      <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div style={{ height: 'calc(100vh - 3rem)', display: 'flex', flexDirection: 'column' }}>
+      <div className="glass-panel" style={{ padding: '2rem', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexShrink: 0 }}>
           <h2 style={{ color: 'var(--text-main)', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Users /> Active Patrol Units
           </h2>
           <button onClick={generateOptimalRoutes} disabled={loading} style={{ 
-            background: loading ? 'gray' : 'var(--accent-blue)', 
+            background: loading ? 'rgba(59, 130, 246, 0.5)' : 'var(--accent-blue)', 
             color: 'white', 
             border: 'none', 
             padding: '0.75rem 1.5rem', 
@@ -46,28 +50,35 @@ export default function Patrols() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            fontWeight: '600'
+            fontWeight: '600',
+            transition: 'background 0.2s'
           }}>
-            <Navigation size={18} />
-            {loading ? 'Optimizing...' : 'Generate Optimal Routes'}
+            {loading ? (
+              <Loader2 size={18} className="spin" />
+            ) : (
+              <Navigation size={18} />
+            )}
+            {loading ? 'Optimizing Routes...' : 'Generate Optimal Routes'}
           </button>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Unit ID</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Unit ID</th>
               <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Assigned Zone</th>
               <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Officer</th>
               <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Shift</th>
               <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Status</th>
               <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Zone Risk Score</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {patrols.map((patrol) => (
               <tr key={patrol.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '1rem', fontWeight: '600' }}>{patrol.id}</td>
+                <td style={{ padding: '1rem', fontWeight: '600', whiteSpace: 'nowrap' }}>{patrol.id}</td>
                 <td style={{ padding: '1rem' }}>{patrol.zone}</td>
                 <td style={{ padding: '1rem' }}>{patrol.officer}</td>
                 <td style={{ padding: '1rem' }}>{patrol.shift}</td>
@@ -95,10 +106,69 @@ export default function Patrols() {
                     <span style={{ fontSize: '0.875rem' }}>{patrol.riskScore}</span>
                   </div>
                 </td>
+                <td style={{ padding: '1rem', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={() => onViewRoute && onViewRoute(patrol.zone)}
+                      title={`View ${patrol.zone} Route`}
+                      style={{
+                        background: 'rgba(6, 182, 212, 0.1)',
+                        border: '1px solid rgba(6, 182, 212, 0.3)',
+                        color: 'var(--accent-cyan)',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--accent-cyan)';
+                        e.currentTarget.style.color = '#000';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)';
+                        e.currentTarget.style.color = 'var(--accent-cyan)';
+                      }}
+                    >
+                      📍 Route
+                    </button>
+                    <button 
+                      onClick={() => alert(`Backup request & dispatch alert successfully transmitted to ${patrol.officer} (Unit ${patrol.id}). Status: Pending response.`)}
+                      title="Dispatch Backup Alert"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: 'var(--accent-red)',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--accent-red)';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                        e.currentTarget.style.color = 'var(--accent-red)';
+                      }}
+                    >
+                      ✉️ Alert
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );
